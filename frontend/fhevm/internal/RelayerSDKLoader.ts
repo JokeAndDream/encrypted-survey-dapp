@@ -56,19 +56,37 @@ export class RelayerSDKLoader {
       script.type = "text/javascript";
       script.async = true;
 
+      // Add timeout to detect if script never loads
+      const timeoutId = setTimeout(() => {
+        console.log("[RelayerSDKLoader] Script load timeout - checking if script loaded...");
+        if (!isFhevmWindowType(window, this._trace)) {
+          console.log("[RelayerSDKLoader] Script load timeout - window.relayerSDK still not available");
+          // Don't reject here, let onload/onerror handle it
+        }
+      }, 10000); // 10 seconds timeout
+
       script.onload = () => {
+        clearTimeout(timeoutId);
         console.log("[RelayerSDKLoader] script onload callback triggered");
+        console.log("[RelayerSDKLoader] Script URL:", SDK_CDN_URL);
+        console.log("[RelayerSDKLoader] Checking window.relayerSDK immediately...");
+        console.log("[RelayerSDKLoader] window.relayerSDK exists:", "relayerSDK" in window);
+        console.log("[RelayerSDKLoader] window.relayerSDK value:", (window as any).relayerSDK);
+        
         // Poll for window.relayerSDK to be available (script may need time to execute)
         let attempts = 0;
         const maxAttempts = 50; // 5 seconds total (50 * 100ms)
         const checkInterval = setInterval(() => {
           attempts++;
+          console.log(`[RelayerSDKLoader] Polling attempt ${attempts}/${maxAttempts}...`);
           if (isFhevmWindowType(window, this._trace)) {
             console.log("[RelayerSDKLoader] script onload SUCCESS - window.relayerSDK is available");
             clearInterval(checkInterval);
             resolve();
           } else if (attempts >= maxAttempts) {
             console.log("[RelayerSDKLoader] script onload FAILED - window.relayerSDK not available after polling");
+            console.log("[RelayerSDKLoader] Final check - window.relayerSDK exists:", "relayerSDK" in window);
+            console.log("[RelayerSDKLoader] Final check - window.relayerSDK value:", (window as any).relayerSDK);
             clearInterval(checkInterval);
             reject(
               new Error(
@@ -80,7 +98,9 @@ export class RelayerSDKLoader {
       };
 
       script.onerror = (error) => {
+        clearTimeout(timeoutId);
         console.log("[RelayerSDKLoader] script onerror... ", error);
+        console.log("[RelayerSDKLoader] Script URL:", SDK_CDN_URL);
         reject(
           new Error(
             `RelayerSDKLoader: Failed to load Relayer SDK from ${SDK_CDN_URL}. This may be due to network issues or CORS restrictions.`
@@ -89,6 +109,7 @@ export class RelayerSDKLoader {
       };
 
       console.log("[RelayerSDKLoader] add script to DOM...");
+      console.log("[RelayerSDKLoader] Script URL:", SDK_CDN_URL);
       document.head.appendChild(script);
       console.log("[RelayerSDKLoader] script added!")
     });
