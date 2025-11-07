@@ -512,8 +512,27 @@ export const useEncryptedSurvey = (parameters: {
           let receipt: ethers.TransactionReceipt;
           
           try {
+            // Check if user has already answered this question before submitting
+            try {
+              const hasAnswered = await contract.hasAnswered(thisSigner.address, questionId);
+              if (hasAnswered) {
+                const errorMsg = `You have already answered question ${questionId + 1}. Each question can only be answered once.`;
+                console.warn(`[EncryptedSurvey] ${errorMsg}`);
+                setMessage(`❌ ${errorMsg}`);
+                return;
+              }
+            } catch (checkError: any) {
+              console.warn(`[EncryptedSurvey] Failed to check hasAnswered, proceeding anyway:`, checkError);
+            }
+            
             console.log(`[EncryptedSurvey] Calling submitAnswer with questionId=${questionId}, handle=${handleBytes32.slice(0, 20)}...`);
             console.log(`[EncryptedSurvey] About to call contract.submitAnswer...`);
+            console.log(`[EncryptedSurvey] Parameters:`, {
+              questionId,
+              handleLength: handleBytes32.length,
+              inputProofLength: typeof inputProofBytes === 'string' ? inputProofBytes.length : inputProofBytes.length,
+            });
+            
             tx = await contract.submitAnswer(questionId, handleBytes32, inputProofBytes);
             console.log(`[EncryptedSurvey] ✅ Transaction sent! Hash: ${tx.hash}`);
             
@@ -533,6 +552,44 @@ export const useEncryptedSurvey = (parameters: {
               reason: txError?.reason,
               shortMessage: txError?.shortMessage,
             });
+            
+            // Parse error message to provide better user feedback
+            let errorMessage = "Transaction failed";
+            if (txError?.data) {
+              // Check for common error selectors
+              const errorData = txError.data;
+              if (typeof errorData === 'string' && errorData.length > 10) {
+                const errorSelector = errorData.slice(0, 10);
+                console.log(`[EncryptedSurvey] Error selector: ${errorSelector}`);
+                
+                // Common error selectors (first 4 bytes of keccak256 hash)
+                // "Already answered this question" = keccak256("Already answered this question")
+                // "Invalid question ID" = keccak256("Invalid question ID")
+                
+                // Try to decode error message
+                try {
+                  const iface = new ethers.Interface(surveyRef.current.abi);
+                  const decodedError = iface.parseError(errorData);
+                  if (decodedError) {
+                    errorMessage = `Contract error: ${decodedError.name}`;
+                    console.log(`[EncryptedSurvey] Decoded error:`, decodedError);
+                  }
+                } catch (decodeErr) {
+                  console.warn(`[EncryptedSurvey] Could not decode error:`, decodeErr);
+                }
+              }
+            }
+            
+            // Check for specific error messages
+            if (txError?.message?.includes("Already answered")) {
+              errorMessage = `You have already answered question ${questionId + 1}. Each question can only be answered once.`;
+            } else if (txError?.message?.includes("Invalid question ID")) {
+              errorMessage = `Invalid question ID: ${questionId}. Please try again.`;
+            } else if (txError?.message?.includes("execution reverted")) {
+              errorMessage = `Transaction reverted. This may be due to: 1) You have already answered this question, 2) Invalid input proof, or 3) FHEVM configuration issue.`;
+            }
+            
+            setMessage(`❌ ${errorMessage}`);
             throw txError; // Re-throw to be caught by outer catch
           }
           
