@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FhevmInstance } from "./fhevmTypes";
-import { createFhevmInstance } from "./internal/fhevm";
+import { createFhevmInstance, FhevmAbortError } from "./internal/fhevm";
 
 function _assert(condition: boolean, message?: string): asserts condition {
   if (!condition) {
@@ -149,8 +149,18 @@ export function useFhevm(parameters: {
           _setStatus("ready");
         })
         .catch((e) => {
-          console.log(`Error Was thrown !!! error... ` + e.name);
-          if (thisSignal.aborted) return;
+          const name = (e as Error)?.name ?? "Unknown";
+          console.log(`Error Was thrown !!! error... ${name}`);
+
+          if (thisSignal.aborted) {
+            console.log("[useFhevm] Abort signal triggered, ignoring error");
+            return;
+          }
+
+          if (e instanceof FhevmAbortError) {
+            console.log("[useFhevm] createFhevmInstance aborted, keeping previous state");
+            return;
+          }
 
           // it's not possible to have a _providerRef modified without a prior abort
           _assert(
@@ -159,7 +169,7 @@ export function useFhevm(parameters: {
           );
 
           _setInstance(undefined);
-          _setError(e);
+          _setError(e as Error);
           _setStatus("error");
         });
     }
