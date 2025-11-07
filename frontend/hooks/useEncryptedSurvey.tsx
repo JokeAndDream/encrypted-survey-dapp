@@ -62,19 +62,28 @@ export const useEncryptedSurvey = (parameters: {
   // Priority: 1) Use wallet chainId if contract is deployed on that network
   //           2) Fall back to localhost (31337) ONLY if we're on localhost and wallet is not connected
   const effectiveChainId = (() => {
+    console.log(`[useEncryptedSurvey] effectiveChainId: chainId=${chainId}, hostname=${typeof window !== "undefined" ? window.location.hostname : "undefined"}`);
+    
     // First, check if we have a deployment for the wallet's chainId
     if (chainId) {
       const chainEntry = EncryptedSurveyAddresses[chainId.toString() as keyof typeof EncryptedSurveyAddresses];
+      console.log(`[useEncryptedSurvey] effectiveChainId: chainEntry for ${chainId}:`, chainEntry);
       if (chainEntry && chainEntry.address !== ethers.ZeroAddress) {
         console.log(`[useEncryptedSurvey] Using wallet chainId (${chainId}) for contract lookup`);
         return chainId;
+      } else {
+        console.log(`[useEncryptedSurvey] effectiveChainId: No deployment found for chainId ${chainId}`);
       }
+    } else {
+      console.log(`[useEncryptedSurvey] effectiveChainId: chainId is undefined`);
     }
     
     // If wallet chainId doesn't have a deployment, check for localhost deployment
     // ONLY use localhost if we're actually on localhost (not Vercel/production)
     const isLocalhost = typeof window !== "undefined" && 
       (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    
+    console.log(`[useEncryptedSurvey] effectiveChainId: isLocalhost=${isLocalhost}`);
     
     const localhostEntry = EncryptedSurveyAddresses["31337"];
     if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress && isLocalhost) {
