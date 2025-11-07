@@ -17,6 +17,7 @@
     "genabi:survey": "node ./scripts/genabi-survey.mjs",
     "ishhrunning": "node ./scripts/is-hardhat-node-running.mjs",
     "build": "next build",
+    "build:vercel": "next build",
     "start": "next start",
     "lint": "next lint"
   },
