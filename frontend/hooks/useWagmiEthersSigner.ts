@@ -51,15 +51,9 @@ export function useWagmiEthersSigner() {
   }, [signer]);
 
   // Create stable functions that use refs
-  const sameChainRef = useRef<((cid: number | undefined) => boolean) | undefined>(undefined);
-  const sameSignerRef = useRef<((s: ethers.JsonRpcSigner | undefined) => boolean) | undefined>(undefined);
-
-  if (!sameChainRef.current) {
-    sameChainRef.current = (cid: number | undefined) => cid === chainIdRef.current;
-  }
-  if (!sameSignerRef.current) {
-    sameSignerRef.current = (s: ethers.JsonRpcSigner | undefined) => s?.address === signerAddressRef.current;
-  }
+  // Initialize with a default function to ensure current is never undefined
+  const sameChainRef = useRef<(cid: number | undefined) => boolean>((cid: number | undefined) => cid === chainIdRef.current);
+  const sameSignerRef = useRef<(s: ethers.JsonRpcSigner | undefined) => boolean>((s: ethers.JsonRpcSigner | undefined) => s?.address === signerAddressRef.current);
 
   // Update functions to use current ref values
   sameChainRef.current = (cid: number | undefined) => cid === chainIdRef.current;
