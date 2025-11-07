@@ -120,36 +120,48 @@ function isFhevmRelayerSDKType(
   o: unknown,
   trace?: TraceType
 ): o is FhevmRelayerSDKType {
+  console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: checking object...", o);
   if (typeof o === "undefined") {
     trace?.("RelayerSDKLoader: relayerSDK is undefined");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - undefined");
     return false;
   }
   if (o === null) {
     trace?.("RelayerSDKLoader: relayerSDK is null");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - null");
     return false;
   }
   if (typeof o !== "object") {
     trace?.("RelayerSDKLoader: relayerSDK is not an object");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - not an object, type:", typeof o);
     return false;
   }
+  console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: checking initSDK...");
   if (!objHasProperty(o, "initSDK", "function", trace)) {
     trace?.("RelayerSDKLoader: relayerSDK.initSDK is invalid");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - initSDK invalid");
     return false;
   }
+  console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: checking createInstance...");
   if (!objHasProperty(o, "createInstance", "function", trace)) {
     trace?.("RelayerSDKLoader: relayerSDK.createInstance is invalid");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - createInstance invalid");
     return false;
   }
+  console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: checking SepoliaConfig...");
   if (!objHasProperty(o, "SepoliaConfig", "object", trace)) {
     trace?.("RelayerSDKLoader: relayerSDK.SepoliaConfig is invalid");
+    console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - SepoliaConfig invalid");
     return false;
   }
   if ("__initialized__" in o) {
     if (o.__initialized__ !== true && o.__initialized__ !== false) {
       trace?.("RelayerSDKLoader: relayerSDK.__initialized__ is invalid");
+      console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: FAILED - __initialized__ invalid");
       return false;
     }
   }
+  console.log("[RelayerSDKLoader] isFhevmRelayerSDKType: SUCCESS - all checks passed");
   return true;
 }
 
@@ -157,23 +169,32 @@ export function isFhevmWindowType(
   win: unknown,
   trace?: TraceType
 ): win is FhevmWindowType {
+  console.log("[RelayerSDKLoader] isFhevmWindowType: checking window...");
   if (typeof win === "undefined") {
     trace?.("RelayerSDKLoader: window object is undefined");
+    console.log("[RelayerSDKLoader] isFhevmWindowType: FAILED - window undefined");
     return false;
   }
   if (win === null) {
     trace?.("RelayerSDKLoader: window object is null");
+    console.log("[RelayerSDKLoader] isFhevmWindowType: FAILED - window null");
     return false;
   }
   if (typeof win !== "object") {
     trace?.("RelayerSDKLoader: window is not an object");
+    console.log("[RelayerSDKLoader] isFhevmWindowType: FAILED - window not an object");
     return false;
   }
+  console.log("[RelayerSDKLoader] isFhevmWindowType: checking relayerSDK property...");
   if (!("relayerSDK" in win)) {
     trace?.("RelayerSDKLoader: window does not contain 'relayerSDK' property");
+    console.log("[RelayerSDKLoader] isFhevmWindowType: FAILED - relayerSDK not in window");
     return false;
   }
-  return isFhevmRelayerSDKType(win.relayerSDK);
+  console.log("[RelayerSDKLoader] isFhevmWindowType: relayerSDK found, checking type...");
+  const result = isFhevmRelayerSDKType(win.relayerSDK, trace);
+  console.log("[RelayerSDKLoader] isFhevmWindowType: result:", result);
+  return result;
 }
 
 function objHasProperty<
