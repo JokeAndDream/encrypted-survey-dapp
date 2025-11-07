@@ -543,15 +543,17 @@ export const useEncryptedSurvey = (parameters: {
                 // "Invalid question ID" = keccak256("Invalid question ID")
                 
                 // Try to decode error message
-                try {
-                  const iface = new ethers.Interface(surveyRef.current.abi);
-                  const decodedError = iface.parseError(errorData);
-                  if (decodedError) {
-                    errorMessage = `Contract error: ${decodedError.name}`;
-                    console.log(`[EncryptedSurvey] Decoded error:`, decodedError);
+                if (surveyRef.current) {
+                  try {
+                    const iface = new ethers.Interface(surveyRef.current.abi);
+                    const decodedError = iface.parseError(errorData);
+                    if (decodedError) {
+                      errorMessage = `Contract error: ${decodedError.name}`;
+                      console.log(`[EncryptedSurvey] Decoded error:`, decodedError);
+                    }
+                  } catch (decodeErr) {
+                    console.warn(`[EncryptedSurvey] Could not decode error:`, decodeErr);
                   }
-                } catch (decodeErr) {
-                  console.warn(`[EncryptedSurvey] Could not decode error:`, decodeErr);
                 }
               }
             }
