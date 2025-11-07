@@ -460,53 +460,24 @@ export const useEncryptedSurvey = (parameters: {
           console.log(`[EncryptedSurvey] Step 5/5: Submitting transaction with questionId=${questionId}`);
           console.log(`[EncryptedSurvey] Contract address: ${thisAddress}, Signer: ${thisSigner.address}`);
           
-          // Ensure handle is in the correct format (bytes32)
-          console.log(`[EncryptedSurvey] Converting handle to bytes32 format...`);
+          // Use enc.handles[0] and enc.inputProof directly, similar to useFHECounter
+          // The ethers.js contract interface will handle the conversion automatically
           const handle = enc.handles[0];
           if (!handle) {
             throw new Error("Encrypted handle is undefined");
           }
           
-          // Convert handle to bytes32 hex string
-          let handleBytes32: string;
-          try {
-            if (typeof handle === 'string') {
-              console.log(`[EncryptedSurvey] Handle is already a string`);
-              handleBytes32 = handle;
-            } else if (handle instanceof Uint8Array) {
-              console.log(`[EncryptedSurvey] Converting Uint8Array to hex string...`);
-              // Convert Uint8Array to hex string
-              handleBytes32 = '0x' + Array.from(handle).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-              console.log(`[EncryptedSurvey] Conversion complete`);
-            } else if (Array.isArray(handle)) {
-              console.log(`[EncryptedSurvey] Converting array to hex string...`);
-              // Convert array to hex string
-              const handleArray = handle as number[];
-              handleBytes32 = '0x' + handleArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
-              console.log(`[EncryptedSurvey] Conversion complete`);
-            } else {
-              const handleType = typeof handle;
-              const handleConstructor = (handle as unknown as { constructor?: { name?: string } })?.constructor?.name;
-              throw new Error(`Invalid handle format: ${handleType}, constructor: ${handleConstructor || 'unknown'}`);
-            }
-          } catch (conversionError: any) {
-            console.error(`[EncryptedSurvey] Error converting handle:`, conversionError);
-            throw conversionError;
-          }
+          console.log(`[EncryptedSurvey] Using handle directly:`, {
+            handleType: typeof handle,
+            handleValue: handle instanceof Uint8Array ? `Uint8Array(${handle.length})` : handle,
+          });
           
-          console.log(`[EncryptedSurvey] Handle bytes32: ${handleBytes32}`);
-          console.log(`[EncryptedSurvey] Handle length: ${handleBytes32.length} characters (should be 66 for 0x + 32 bytes)`);
-          
-          // Also convert inputProof if it's a Uint8Array
-          console.log(`[EncryptedSurvey] Converting inputProof...`);
-          let inputProofBytes: string | Uint8Array = enc.inputProof;
-          if (enc.inputProof instanceof Uint8Array) {
-            console.log(`[EncryptedSurvey] Converting inputProof from Uint8Array to hex string...`);
-            inputProofBytes = '0x' + Array.from(enc.inputProof).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-            console.log(`[EncryptedSurvey] Converted inputProof from Uint8Array to hex string, length: ${inputProofBytes.length} characters`);
-          } else {
-            console.log(`[EncryptedSurvey] InputProof is already in correct format`);
-          }
+          // Use inputProof directly - ethers.js will handle conversion
+          const inputProof = enc.inputProof;
+          console.log(`[EncryptedSurvey] Using inputProof directly:`, {
+            inputProofType: typeof inputProof,
+            inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
+          });
           
           let tx: ethers.TransactionResponse;
           let receipt: ethers.TransactionReceipt;
@@ -525,15 +496,18 @@ export const useEncryptedSurvey = (parameters: {
               console.warn(`[EncryptedSurvey] Failed to check hasAnswered, proceeding anyway:`, checkError);
             }
             
-            console.log(`[EncryptedSurvey] Calling submitAnswer with questionId=${questionId}, handle=${handleBytes32.slice(0, 20)}...`);
+            console.log(`[EncryptedSurvey] Calling submitAnswer with questionId=${questionId}...`);
             console.log(`[EncryptedSurvey] About to call contract.submitAnswer...`);
             console.log(`[EncryptedSurvey] Parameters:`, {
               questionId,
-              handleLength: handleBytes32.length,
-              inputProofLength: typeof inputProofBytes === 'string' ? inputProofBytes.length : inputProofBytes.length,
+              handleType: typeof handle,
+              handleValue: handle instanceof Uint8Array ? `Uint8Array(${handle.length})` : String(handle).slice(0, 20),
+              inputProofType: typeof inputProof,
+              inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
             });
             
-            tx = await contract.submitAnswer(questionId, handleBytes32, inputProofBytes);
+            // Pass handle and inputProof directly, similar to useFHECounter
+            tx = await contract.submitAnswer(questionId, handle, inputProof);
             console.log(`[EncryptedSurvey] ✅ Transaction sent! Hash: ${tx.hash}`);
             
             setMessage(`⏳ Waiting for transaction confirmation... (Hash: ${tx.hash.slice(0, 10)}...)`);
