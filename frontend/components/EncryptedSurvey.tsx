@@ -10,12 +10,32 @@ export function EncryptedSurvey() {
   const { storage } = useInMemoryStorage();
   const { provider, chainId, signer, readonlyProvider, sameChain, sameSigner } = useWagmiEthersSigner();
 
-  const { instance, status: fhevmStatus, error: fhevmError } = useFhevm({ provider, chainId, enabled: true, initialMockChains: { 31337: "http://localhost:8545" } });
+  const isLocalhost = typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "0.0.0.0");
+
+  const effectiveChainId = (() => {
+    if (isLocalhost) {
+      return chainId ?? 31337;
+    }
+    if (typeof chainId === "number" && chainId !== 31337) {
+      return chainId;
+    }
+    return 11155111;
+  })();
+
+  const mockChains = isLocalhost ? { 31337: "http://localhost:8545" } : undefined;
+
+  const { instance, status: fhevmStatus, error: fhevmError } = useFhevm({
+    provider,
+    chainId: effectiveChainId,
+    enabled: true,
+    initialMockChains: mockChains,
+  });
 
   const survey = useEncryptedSurvey({
     instance,
     fhevmDecryptionSignatureStorage: storage,
-    chainId,
+    chainId: effectiveChainId,
     ethersSigner: signer,
     ethersReadonlyProvider: readonlyProvider,
     sameChain,
