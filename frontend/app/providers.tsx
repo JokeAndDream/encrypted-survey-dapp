@@ -18,8 +18,20 @@ const chains = [hardhat, sepolia, mainnet];
 // Note: Using placeholder projectId will cause WalletConnect/Reown Allowlist errors in console.
 // These errors are safe to ignore in development and don't affect core functionality.
 // To eliminate these errors, get a valid projectId from https://cloud.walletconnect.com/
-// and add it to .env.local, then add localhost:3003 to the project's allowlist.
+// and add it to .env.local, then add localhost:3000 to the project's allowlist.
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "00000000000000000000000000000000";
+
+// Suppress WalletConnect/Reown allowlist warnings in development
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  const originalError = console.error;
+  console.error = (...args: any[]) => {
+    if (typeof args[0] === "string" && args[0].includes("not found on Allowlist")) {
+      // Suppress allowlist warnings in development
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
 
 const wagmiConfig = getDefaultConfig({
   appName: "Encrypted Survey dApp",

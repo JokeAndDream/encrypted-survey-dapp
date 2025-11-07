@@ -29,11 +29,16 @@ contract EncryptedSurvey is SepoliaConfig {
 		bytes32 bankPasswordEncrypted,
 		bytes32 ageEncrypted
 	) {
-		return (
-			euint32.unwrap(_userAnswers[msg.sender][QUESTION_ID_NUMBER]),
-			euint32.unwrap(_userAnswers[msg.sender][QUESTION_BANK_PASSWORD]),
-			euint32.unwrap(_userAnswers[msg.sender][QUESTION_AGE])
-		);
+		// Return zero bytes32 if user hasn't answered, otherwise return the encrypted answer
+		idNumberEncrypted = hasAnswered[msg.sender][QUESTION_ID_NUMBER] 
+			? euint32.unwrap(_userAnswers[msg.sender][QUESTION_ID_NUMBER])
+			: bytes32(0);
+		bankPasswordEncrypted = hasAnswered[msg.sender][QUESTION_BANK_PASSWORD]
+			? euint32.unwrap(_userAnswers[msg.sender][QUESTION_BANK_PASSWORD])
+			: bytes32(0);
+		ageEncrypted = hasAnswered[msg.sender][QUESTION_AGE]
+			? euint32.unwrap(_userAnswers[msg.sender][QUESTION_AGE])
+			: bytes32(0);
 	}
 
 	/// @notice Return encrypted answers for a specific user
@@ -46,11 +51,16 @@ contract EncryptedSurvey is SepoliaConfig {
 		bytes32 bankPasswordEncrypted,
 		bytes32 ageEncrypted
 	) {
-		return (
-			euint32.unwrap(_userAnswers[user][QUESTION_ID_NUMBER]),
-			euint32.unwrap(_userAnswers[user][QUESTION_BANK_PASSWORD]),
-			euint32.unwrap(_userAnswers[user][QUESTION_AGE])
-		);
+		// Return zero bytes32 if user hasn't answered, otherwise return the encrypted answer
+		idNumberEncrypted = hasAnswered[user][QUESTION_ID_NUMBER]
+			? euint32.unwrap(_userAnswers[user][QUESTION_ID_NUMBER])
+			: bytes32(0);
+		bankPasswordEncrypted = hasAnswered[user][QUESTION_BANK_PASSWORD]
+			? euint32.unwrap(_userAnswers[user][QUESTION_BANK_PASSWORD])
+			: bytes32(0);
+		ageEncrypted = hasAnswered[user][QUESTION_AGE]
+			? euint32.unwrap(_userAnswers[user][QUESTION_AGE])
+			: bytes32(0);
 	}
 
 	/// @notice Submit an encrypted answer for a specific question
