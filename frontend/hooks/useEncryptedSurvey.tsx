@@ -440,7 +440,11 @@ export const useEncryptedSurvey = (parameters: {
             console.log(`[EncryptedSurvey] ✅ Transaction sent! Hash: ${tx.hash}`);
             
             setMessage(`⏳ Waiting for transaction confirmation... (Hash: ${tx.hash.slice(0, 10)}...)`);
-            receipt = await tx.wait();
+            const receiptOrNull = await tx.wait();
+            if (!receiptOrNull) {
+              throw new Error("Transaction receipt is null");
+            }
+            receipt = receiptOrNull;
             console.log(`[EncryptedSurvey] ✅ Transaction confirmed! Block: ${receipt.blockNumber}, Hash: ${tx.hash}`);
           } catch (txError: any) {
             console.error(`[EncryptedSurvey] ❌ Transaction submission failed:`, txError);
