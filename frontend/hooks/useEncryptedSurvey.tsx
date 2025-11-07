@@ -462,44 +462,15 @@ export const useEncryptedSurvey = (parameters: {
           
           // Use enc.handles[0] and enc.inputProof directly, similar to useFHECounter
           // The ethers.js contract interface will handle the conversion automatically
-          const handle = enc.handles[0];
-          if (!handle) {
+          if (!enc.handles[0]) {
             throw new Error("Encrypted handle is undefined");
           }
           
-          // Validate handle format - should be 32 bytes (bytes32)
-          let handleBytes32: string | Uint8Array;
-          if (handle instanceof Uint8Array) {
-            if (handle.length !== 32) {
-              throw new Error(`Invalid handle length: expected 32 bytes, got ${handle.length}`);
-            }
-            handleBytes32 = handle;
-          } else if (typeof handle === 'string') {
-            // If it's a hex string, validate it's 32 bytes (66 chars with 0x prefix)
-            if (handle.startsWith('0x') && handle.length === 66) {
-              handleBytes32 = handle;
-            } else {
-              throw new Error(`Invalid handle format: expected 32-byte hex string (66 chars), got ${handle.length} chars`);
-            }
-          } else {
-            throw new Error(`Invalid handle type: ${typeof handle}`);
-          }
-          
-          console.log(`[EncryptedSurvey] Using handle directly:`, {
-            handleType: typeof handleBytes32,
-            handleLength: handleBytes32 instanceof Uint8Array ? handleBytes32.length : (typeof handleBytes32 === 'string' ? handleBytes32.length : 'unknown'),
-          });
-          
-          // Use inputProof directly - ethers.js will handle conversion
-          const inputProof = enc.inputProof;
-          if (!inputProof) {
+          if (!enc.inputProof) {
             throw new Error("Input proof is undefined");
           }
           
-          console.log(`[EncryptedSurvey] Using inputProof directly:`, {
-            inputProofType: typeof inputProof,
-            inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
-          });
+          console.log(`[EncryptedSurvey] Using handle and inputProof directly (ethers.js will handle conversion)`);
           
           let tx: ethers.TransactionResponse;
           let receipt: ethers.TransactionReceipt;
@@ -519,19 +490,11 @@ export const useEncryptedSurvey = (parameters: {
             }
             
             console.log(`[EncryptedSurvey] Calling submitAnswer with questionId=${questionId}...`);
-            console.log(`[EncryptedSurvey] About to call contract.submitAnswer...`);
-            console.log(`[EncryptedSurvey] Parameters:`, {
-              questionId,
-              handleType: typeof handleBytes32,
-              handleValue: handleBytes32 instanceof Uint8Array ? `Uint8Array(${handleBytes32.length})` : String(handleBytes32).slice(0, 20),
-              inputProofType: typeof inputProof,
-              inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
-            });
             
             // Try static call first to get better error message (this will fail with the same error but earlier)
             try {
               console.log(`[EncryptedSurvey] Attempting static call to validate parameters...`);
-              await contract.submitAnswer.staticCall(questionId, handleBytes32, inputProof);
+              await contract.submitAnswer.staticCall(questionId, enc.handles[0], enc.inputProof);
               console.log(`[EncryptedSurvey] Static call succeeded, proceeding with transaction...`);
             } catch (staticError: any) {
               console.error(`[EncryptedSurvey] Static call failed:`, staticError);
@@ -546,7 +509,7 @@ export const useEncryptedSurvey = (parameters: {
             }
             
             // Pass handle and inputProof directly, similar to useFHECounter
-            tx = await contract.submitAnswer(questionId, handleBytes32, inputProof);
+            tx = await contract.submitAnswer(questionId, enc.handles[0], enc.inputProof);
             console.log(`[EncryptedSurvey] ✅ Transaction sent! Hash: ${tx.hash}`);
             
             setMessage(`⏳ Waiting for transaction confirmation... (Hash: ${tx.hash.slice(0, 10)}...)`);
