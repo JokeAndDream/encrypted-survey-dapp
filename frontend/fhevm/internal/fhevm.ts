@@ -285,7 +285,7 @@ export const createFhevmInstance = async (parameters: {
     if (!isLocalhost) {
       console.log(`[createFhevmInstance] Not on localhost (hostname=${typeof window !== "undefined" ? window.location.hostname : "undefined"}), cannot use mock chain. Falling back to real FHEVM relayer.`);
       // Force use of real FHEVM relayer instead of mock
-      // We'll continue to the real SDK initialization below
+      // Skip the mock instance creation and continue to real SDK initialization below
     } else {
       // Throws an error if cannot connect or url does not refer to a Web3 client
       const fhevmRelayerMetadata =
@@ -294,34 +294,35 @@ export const createFhevmInstance = async (parameters: {
       console.log(`[createFhevmInstance] FHEVM metadata:`, fhevmRelayerMetadata ? 'found' : 'not found');
 
       if (fhevmRelayerMetadata) {
-      // fhevmRelayerMetadata is defined, which means rpcUrl refers to a FHEVM Hardhat Node
-      notify("creating");
+        // fhevmRelayerMetadata is defined, which means rpcUrl refers to a FHEVM Hardhat Node
+        notify("creating");
 
-      //////////////////////////////////////////////////////////////////////////
-      // 
-      // WARNING!!
-      // ALWAY USE DYNAMIC IMPORT TO AVOID INCLUDING THE ENTIRE FHEVM MOCK LIB 
-      // IN THE FINAL PRODUCTION BUNDLE!!
-      // 
-      //////////////////////////////////////////////////////////////////////////
-      const fhevmMock = await import("./mock/fhevmMock");
-      const mockInstance = await fhevmMock.fhevmMockCreateInstance({
-        rpcUrl,
-        chainId,
-        metadata: fhevmRelayerMetadata,
-      });
+        //////////////////////////////////////////////////////////////////////////
+        // 
+        // WARNING!!
+        // ALWAY USE DYNAMIC IMPORT TO AVOID INCLUDING THE ENTIRE FHEVM MOCK LIB 
+        // IN THE FINAL PRODUCTION BUNDLE!!
+        // 
+        //////////////////////////////////////////////////////////////////////////
+        const fhevmMock = await import("./mock/fhevmMock");
+        const mockInstance = await fhevmMock.fhevmMockCreateInstance({
+          rpcUrl,
+          chainId,
+          metadata: fhevmRelayerMetadata,
+        });
 
-      throwIfAborted();
+        throwIfAborted();
 
-      return mockInstance;
-    } else {
-      // If we're on a mock chain but can't get FHEVM metadata, throw an error
-      // instead of falling back to real relayer SDK which won't work with local node
-      console.error(`[createFhevmInstance] Mock chain detected but FHEVM metadata not found. Throwing error to prevent fallback to real SDK.`);
-      throw new FhevmReactError(
-        "FHEVM_MOCK_CHAIN_NO_METADATA",
-        `Chain ${chainId} is configured as a mock chain but FHEVM relayer metadata could not be fetched from ${rpcUrl}. Please ensure Hardhat node is running with FHEVM plugin enabled.`
-      );
+        return mockInstance;
+      } else {
+        // If we're on a mock chain but can't get FHEVM metadata, throw an error
+        // instead of falling back to real relayer SDK which won't work with local node
+        console.error(`[createFhevmInstance] Mock chain detected but FHEVM metadata not found. Throwing error to prevent fallback to real SDK.`);
+        throw new FhevmReactError(
+          "FHEVM_MOCK_CHAIN_NO_METADATA",
+          `Chain ${chainId} is configured as a mock chain but FHEVM relayer metadata could not be fetched from ${rpcUrl}. Please ensure Hardhat node is running with FHEVM plugin enabled.`
+        );
+      }
     }
   }
 
