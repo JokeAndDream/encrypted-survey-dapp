@@ -522,11 +522,28 @@ export const useEncryptedSurvey = (parameters: {
             console.log(`[EncryptedSurvey] About to call contract.submitAnswer...`);
             console.log(`[EncryptedSurvey] Parameters:`, {
               questionId,
-              handleType: typeof handle,
-              handleValue: handle instanceof Uint8Array ? `Uint8Array(${handle.length})` : String(handle).slice(0, 20),
+              handleType: typeof handleBytes32,
+              handleValue: handleBytes32 instanceof Uint8Array ? `Uint8Array(${handleBytes32.length})` : String(handleBytes32).slice(0, 20),
               inputProofType: typeof inputProof,
               inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
             });
+            
+            // Try static call first to get better error message (this will fail with the same error but earlier)
+            try {
+              console.log(`[EncryptedSurvey] Attempting static call to validate parameters...`);
+              await contract.submitAnswer.staticCall(questionId, handleBytes32, inputProof);
+              console.log(`[EncryptedSurvey] Static call succeeded, proceeding with transaction...`);
+            } catch (staticError: any) {
+              console.error(`[EncryptedSurvey] Static call failed:`, staticError);
+              console.error(`[EncryptedSurvey] Static call error details:`, {
+                message: staticError?.message,
+                code: staticError?.code,
+                data: staticError?.data,
+                reason: staticError?.reason,
+              });
+              // If static call fails, the transaction will also fail, so throw early with better error message
+              throw staticError;
+            }
             
             // Pass handle and inputProof directly, similar to useFHECounter
             tx = await contract.submitAnswer(questionId, handleBytes32, inputProof);
