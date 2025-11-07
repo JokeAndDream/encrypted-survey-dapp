@@ -236,6 +236,8 @@ async function resolve(
   const isLocalhost = typeof window !== "undefined" && 
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   
+  console.log(`[resolve] Checking localhost: hostname=${typeof window !== "undefined" ? window.location.hostname : "undefined"}, isLocalhost=${isLocalhost}`);
+  
   if (Object.keys(_mockChains).length > 0 && isLocalhost) {
     const defaultChainId = Number(Object.keys(_mockChains)[0]);
     const defaultRpcUrl = _mockChains[defaultChainId];
@@ -243,7 +245,7 @@ async function resolve(
     return { isMock: true, chainId: defaultChainId, rpcUrl: defaultRpcUrl };
   }
 
-  console.log(`[resolve] Not a mock chain (chainId=${chainId} not in mockChains), using real FHEVM relayer`);
+  console.log(`[resolve] Not a mock chain (chainId=${chainId} not in mockChains), using real FHEVM relayer for production`);
   return { isMock: false, chainId, rpcUrl };
 }
 
