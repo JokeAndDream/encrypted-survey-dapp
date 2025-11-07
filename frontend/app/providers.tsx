@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { InMemoryStorageProvider } from "@/hooks/useInMemoryStorage";
-import { WagmiProvider, http } from "wagmi";
+import { WagmiProvider } from "wagmi";
 import { mainnet, sepolia, hardhat } from "wagmi/chains";
 import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,8 +10,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 type Props = {
   children: ReactNode;
 };
-
-const chains = [hardhat, sepolia, mainnet];
 
 // Prefer RainbowKit helper to align versions with wagmi v2
 // Use environment variable for WalletConnect projectId, or fallback to a placeholder
@@ -36,12 +34,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
 const wagmiConfig = getDefaultConfig({
   appName: "Encrypted Survey dApp",
   projectId: walletConnectProjectId,
-  chains,
-  transports: {
-    [hardhat.id]: http("http://127.0.0.1:8545"),
-    [sepolia.id]: http(),
-    [mainnet.id]: http(),
-  },
+  chains: [hardhat, sepolia, mainnet] as const,
   ssr: true,
 });
 
