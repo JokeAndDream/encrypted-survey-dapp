@@ -232,14 +232,18 @@ async function resolve(
 
   // If not a mock chain but we have mock chains configured, and we're in development,
   // we can still use the local Hardhat node if available
-  if (Object.keys(_mockChains).length > 0 && typeof window !== "undefined") {
+  // BUT: Only use mock chain if we're actually on localhost (not Vercel/production)
+  const isLocalhost = typeof window !== "undefined" && 
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  
+  if (Object.keys(_mockChains).length > 0 && isLocalhost) {
     const defaultChainId = Number(Object.keys(_mockChains)[0]);
     const defaultRpcUrl = _mockChains[defaultChainId];
-    console.log(`[resolve] Not a mock chain (chainId=${chainId}), but using default mock chain ${defaultChainId} for development`);
+    console.log(`[resolve] Not a mock chain (chainId=${chainId}), but using default mock chain ${defaultChainId} for localhost development`);
     return { isMock: true, chainId: defaultChainId, rpcUrl: defaultRpcUrl };
   }
 
-  console.log(`[resolve] Not a mock chain (chainId=${chainId} not in mockChains)`);
+  console.log(`[resolve] Not a mock chain (chainId=${chainId} not in mockChains), using real FHEVM relayer`);
   return { isMock: false, chainId, rpcUrl };
 }
 
