@@ -57,22 +57,33 @@ export class RelayerSDKLoader {
       script.async = true;
 
       script.onload = () => {
-        if (!isFhevmWindowType(window, this._trace)) {
-          console.log("[RelayerSDKLoader] script onload FAILED...");
-          reject(
-            new Error(
-              `RelayerSDKLoader: Relayer SDK script has been successfully loaded from ${SDK_CDN_URL}, however, the window.relayerSDK object is invalid.`
-            )
-          );
-        }
-        resolve();
+        console.log("[RelayerSDKLoader] script onload callback triggered");
+        // Poll for window.relayerSDK to be available (script may need time to execute)
+        let attempts = 0;
+        const maxAttempts = 50; // 5 seconds total (50 * 100ms)
+        const checkInterval = setInterval(() => {
+          attempts++;
+          if (isFhevmWindowType(window, this._trace)) {
+            console.log("[RelayerSDKLoader] script onload SUCCESS - window.relayerSDK is available");
+            clearInterval(checkInterval);
+            resolve();
+          } else if (attempts >= maxAttempts) {
+            console.log("[RelayerSDKLoader] script onload FAILED - window.relayerSDK not available after polling");
+            clearInterval(checkInterval);
+            reject(
+              new Error(
+                `RelayerSDKLoader: Relayer SDK script has been successfully loaded from ${SDK_CDN_URL}, however, the window.relayerSDK object is invalid after ${maxAttempts} attempts.`
+              )
+            );
+          }
+        }, 100);
       };
 
-      script.onerror = () => {
-        console.log("[RelayerSDKLoader] script onerror... ");
+      script.onerror = (error) => {
+        console.log("[RelayerSDKLoader] script onerror... ", error);
         reject(
           new Error(
-            `RelayerSDKLoader: Failed to load Relayer SDK from ${SDK_CDN_URL}`
+            `RelayerSDKLoader: Failed to load Relayer SDK from ${SDK_CDN_URL}. This may be due to network issues or CORS restrictions.`
           )
         );
       };
