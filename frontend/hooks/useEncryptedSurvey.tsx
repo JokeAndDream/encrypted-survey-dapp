@@ -58,18 +58,30 @@ export const useEncryptedSurvey = (parameters: {
 }) => {
   const { instance, fhevmDecryptionSignatureStorage, chainId, ethersSigner, ethersReadonlyProvider, sameChain, sameSigner } = parameters;
   
-  // If we're using a mock FHEVM instance (local Hardhat node), use chainId 31337 for contract lookup
-  // This ensures we find the contract even if wallet is connected to a different network
+  // Determine effective chain ID for contract lookup
+  // Priority: 1) Use wallet chainId if contract is deployed on that network
+  //           2) Fall back to localhost (31337) if available and wallet is not connected
   const effectiveChainId = (() => {
-    // Check if we have a local Hardhat deployment (chainId 31337)
+    // First, check if we have a deployment for the wallet's chainId
+    if (chainId) {
+      const chainEntry = EncryptedSurveyAddresses[chainId.toString() as keyof typeof EncryptedSurveyAddresses];
+      if (chainEntry && chainEntry.address !== ethers.ZeroAddress) {
+        console.log(`[useEncryptedSurvey] Using wallet chainId (${chainId}) for contract lookup`);
+        return chainId;
+      }
+    }
+    
+    // If wallet chainId doesn't have a deployment, check for localhost deployment
     const localhostEntry = EncryptedSurveyAddresses["31337"];
     if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress) {
-      // If wallet is not connected or connected to a different network, use localhost
-      if (!chainId || chainId !== 31337) {
+      // Only use localhost if wallet is not connected or if we're in development mode
+      if (!chainId || (typeof window !== "undefined" && window.location.hostname === "localhost")) {
         console.log(`[useEncryptedSurvey] Using localhost chainId (31337) instead of wallet chainId (${chainId})`);
         return 31337;
       }
     }
+    
+    // Return wallet chainId as fallback (even if no deployment found)
     return chainId;
   })();
 
