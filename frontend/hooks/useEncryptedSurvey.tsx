@@ -403,7 +403,8 @@ export const useEncryptedSurvey = (parameters: {
             } else if (Array.isArray(handle)) {
               console.log(`[EncryptedSurvey] Converting array to hex string...`);
               // Convert array to hex string
-              handleBytes32 = '0x' + handle.map((b: number) => b.toString(16).padStart(2, '0')).join('');
+              const handleArray = handle as number[];
+              handleBytes32 = '0x' + handleArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
               console.log(`[EncryptedSurvey] Conversion complete`);
             } else {
               throw new Error(`Invalid handle format: ${typeof handle}, constructor: ${handle?.constructor?.name}`);
