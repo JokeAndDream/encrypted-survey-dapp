@@ -1,3 +1,70 @@
+# Encrypted Survey dApp (FHEVM)
+
+A minimal MVP demonstrating a privacy-preserving Yes/No survey on Zama FHEVM. Users submit encrypted answers on-chain; only aggregated results are decrypted client-side by authorized users.
+
+## Features
+- Encrypted submission using FHEVM (`FHE.encrypt()` on client, `FHE.fromExternal()` in contract)
+- On-chain homomorphic aggregation of tallies
+- Client-side decryption for final summary via FHEVM user decryption flow
+- RainbowKit wallet connect (top-right) with styles imported
+- Custom app logo and favicon
+
+## Contracts
+- `contracts/EncryptedSurvey.sol` — maintains encrypted tallies `_yes` and `_no`, prevents double submissions per address, returns encrypted tallies.
+
+### Deploy
+In `1/` directory:
+
+```bash
+# install root deps (if not already)
+npm install
+
+# compile and deploy to local hardhat
+npx hardhat deploy --tags EncryptedSurvey --network localhost
+
+# (Optional) deploy to Sepolia
+npx hardhat deploy --tags EncryptedSurvey --network sepolia
+```
+
+## Tests
+Two suites similar to `FHECounter`:
+- `test/EncryptedSurvey.ts` (runs on local mock FHEVM)
+- `test/EncryptedSurveySepolia.ts` (runs on Sepolia)
+
+Run tests:
+```bash
+npx hardhat test
+```
+
+## Frontend
+Located in `frontend/` (Next.js). Generates ABI and runs dev server.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The script will generate ABI/address files for both `FHECounter` and `EncryptedSurvey` from the hardhat deployments. Ensure contracts are deployed first.
+
+- RainbowKit CSS is imported in `app/layout.tsx`.
+- Connect button is in the top-right navbar.
+- Main page shows the survey with Yes/No submit and a decrypt button for the aggregated summary.
+
+## ABI Generation
+- `npm run genabi` — generates FHECounter ABI
+- `npm run genabi:survey` — generates EncryptedSurvey ABI
+
+These run automatically in `npm run dev`.
+
+## Branding
+- App logo: `frontend/public/app-logo.svg`
+- Favicon: `frontend/public/favicon.svg`
+
+## Notes
+- All code and documentation are in English per requirements.
+- This is an MVP; it enforces one submission per EOA but does not attempt to deanonymize any response.
+
 # FHEVM Hardhat Template
 
 A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the

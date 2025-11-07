@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.zama-bg {
+  background-color: #3b82f6;
+}
+
+/* 确保文字在浅蓝色背景上清晰可见 */
+body {
+  color: white;
+}
+
+/* 调整组件背景和边框，使其与浅蓝色背景搭配 */
+.bg-card-overlay {
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.border-card {
+  border-color: rgba(255, 255, 255, 0.2);
+}

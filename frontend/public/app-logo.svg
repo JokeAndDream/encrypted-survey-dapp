@@ -1,0 +1,20 @@
+<svg width="512" height="128" viewBox="0 0 512 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Encrypted Survey">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="16" width="96" height="96" rx="16" fill="url(#g)"/>
+  <path d="M40 56h32v16H40z M40 80h48v8H40z" fill="#0b1020" opacity="0.85"/>
+  <text x="120" y="76" font-family="Segoe UI, Roboto, Arial" font-size="28" fill="#e5e7eb">Encrypted Survey dApp</text>
+</svg>
+
+
+
+
+
+
+
+
+
