@@ -467,13 +467,35 @@ export const useEncryptedSurvey = (parameters: {
             throw new Error("Encrypted handle is undefined");
           }
           
+          // Validate handle format - should be 32 bytes (bytes32)
+          let handleBytes32: string | Uint8Array;
+          if (handle instanceof Uint8Array) {
+            if (handle.length !== 32) {
+              throw new Error(`Invalid handle length: expected 32 bytes, got ${handle.length}`);
+            }
+            handleBytes32 = handle;
+          } else if (typeof handle === 'string') {
+            // If it's a hex string, validate it's 32 bytes (66 chars with 0x prefix)
+            if (handle.startsWith('0x') && handle.length === 66) {
+              handleBytes32 = handle;
+            } else {
+              throw new Error(`Invalid handle format: expected 32-byte hex string (66 chars), got ${handle.length} chars`);
+            }
+          } else {
+            throw new Error(`Invalid handle type: ${typeof handle}`);
+          }
+          
           console.log(`[EncryptedSurvey] Using handle directly:`, {
-            handleType: typeof handle,
-            handleValue: handle instanceof Uint8Array ? `Uint8Array(${handle.length})` : handle,
+            handleType: typeof handleBytes32,
+            handleLength: handleBytes32 instanceof Uint8Array ? handleBytes32.length : (typeof handleBytes32 === 'string' ? handleBytes32.length : 'unknown'),
           });
           
           // Use inputProof directly - ethers.js will handle conversion
           const inputProof = enc.inputProof;
+          if (!inputProof) {
+            throw new Error("Input proof is undefined");
+          }
+          
           console.log(`[EncryptedSurvey] Using inputProof directly:`, {
             inputProofType: typeof inputProof,
             inputProofLength: inputProof instanceof Uint8Array ? inputProof.length : (typeof inputProof === 'string' ? inputProof.length : 'unknown'),
@@ -507,7 +529,7 @@ export const useEncryptedSurvey = (parameters: {
             });
             
             // Pass handle and inputProof directly, similar to useFHECounter
-            tx = await contract.submitAnswer(questionId, handle, inputProof);
+            tx = await contract.submitAnswer(questionId, handleBytes32, inputProof);
             console.log(`[EncryptedSurvey] ✅ Transaction sent! Hash: ${tx.hash}`);
             
             setMessage(`⏳ Waiting for transaction confirmation... (Hash: ${tx.hash.slice(0, 10)}...)`);
@@ -560,7 +582,13 @@ export const useEncryptedSurvey = (parameters: {
             } else if (txError?.message?.includes("Invalid question ID")) {
               errorMessage = `Invalid question ID: ${questionId}. Please try again.`;
             } else if (txError?.message?.includes("execution reverted")) {
-              errorMessage = `Transaction reverted. This may be due to: 1) You have already answered this question, 2) Invalid input proof, or 3) FHEVM configuration issue.`;
+              // Check for specific error selector 0x7a47c9a2
+              const errorSelector = txError?.data?.slice(0, 10);
+              if (errorSelector === "0x7a47c9a2") {
+                errorMessage = `FHEVM error: Invalid input proof or encrypted value. This may be due to: 1) FHEVM configuration issue on Sepolia, 2) Invalid encryption parameters, or 3) Network connectivity issue. Please try again or check FHEVM status.`;
+              } else {
+                errorMessage = `Transaction reverted. This may be due to: 1) You have already answered this question, 2) Invalid input proof, or 3) FHEVM configuration issue. Error selector: ${errorSelector || 'unknown'}`;
+              }
             }
             
             setMessage(`❌ ${errorMessage}`);
