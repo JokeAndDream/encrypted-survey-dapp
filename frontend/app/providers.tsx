@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { InMemoryStorageProvider } from "@/hooks/useInMemoryStorage";
-import { WagmiProvider, createConfig, http } from "wagmi";
+import { WagmiProvider, http } from "wagmi";
 import { mainnet, sepolia, hardhat } from "wagmi/chains";
 import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID 
 // Suppress WalletConnect/Reown allowlist warnings in development
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   const originalError = console.error;
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (typeof args[0] === "string" && args[0].includes("not found on Allowlist")) {
       // Suppress allowlist warnings in development
       return;

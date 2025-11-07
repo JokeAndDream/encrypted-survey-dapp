@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useFhevm } from "@/fhevm/useFhevm";
 import { useInMemoryStorage } from "@/hooks/useInMemoryStorage";
 import { useEncryptedSurvey } from "@/hooks/useEncryptedSurvey";
@@ -37,7 +37,7 @@ export function EncryptedSurvey() {
   return (
     <div className="w-full">
       <h1 className="text-2xl font-semibold text-white">Encrypted Survey</h1>
-      <p className="text-white/80">Three privacy-preserving numeric questions. Each user's answers are encrypted and stored separately. Only you can decrypt and view your own answers.</p>
+      <p className="text-white/80">Three privacy-preserving numeric questions. Each user&apos;s answers are encrypted and stored separately. Only you can decrypt and view your own answers.</p>
 
       {/* FHEVM Status */}
       <div className="mt-4 p-3 rounded-lg bg-card-overlay border border-card">
@@ -51,7 +51,7 @@ export function EncryptedSurvey() {
 
       {/* Three Questions */}
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        {survey.questions.map((q, idx) => (
+        {survey.questions.map((q) => (
           <div key={q.questionId} className="rounded-xl border border-card p-4 bg-card-overlay">
             <h2 className="font-medium mb-3 text-white text-lg">{q.question}</h2>
             
