@@ -60,7 +60,7 @@ export const useEncryptedSurvey = (parameters: {
   
   // Determine effective chain ID for contract lookup
   // Priority: 1) Use wallet chainId if contract is deployed on that network
-  //           2) Fall back to localhost (31337) if available and wallet is not connected
+  //           2) Fall back to localhost (31337) ONLY if we're on localhost and wallet is not connected
   const effectiveChainId = (() => {
     // First, check if we have a deployment for the wallet's chainId
     if (chainId) {
@@ -72,16 +72,22 @@ export const useEncryptedSurvey = (parameters: {
     }
     
     // If wallet chainId doesn't have a deployment, check for localhost deployment
+    // ONLY use localhost if we're actually on localhost (not Vercel/production)
+    const isLocalhost = typeof window !== "undefined" && 
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    
     const localhostEntry = EncryptedSurveyAddresses["31337"];
-    if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress) {
+    if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress && isLocalhost) {
       // Only use localhost if wallet is not connected or if we're in development mode
-      if (!chainId || (typeof window !== "undefined" && window.location.hostname === "localhost")) {
-        console.log(`[useEncryptedSurvey] Using localhost chainId (31337) instead of wallet chainId (${chainId})`);
+      if (!chainId) {
+        console.log(`[useEncryptedSurvey] Using localhost chainId (31337) - no wallet connected`);
         return 31337;
       }
     }
     
     // Return wallet chainId as fallback (even if no deployment found)
+    // This ensures we use the correct chainId in production
+    console.log(`[useEncryptedSurvey] Using wallet chainId (${chainId}) as fallback`);
     return chainId;
   })();
 
@@ -145,6 +151,7 @@ export const useEncryptedSurvey = (parameters: {
       let age: string;
       
       try {
+        // Try calling getMyAnswers() directly
         [idNumber, bankPassword, age] = await contract.getMyAnswers();
         console.log(`[EncryptedSurvey] Refreshed user answers:`, { 
           idNumber, 
@@ -152,9 +159,10 @@ export const useEncryptedSurvey = (parameters: {
           age 
         });
       } catch (decodeError: any) {
-        // If decoding fails, try using staticCall with explicit return types
-        console.warn(`[EncryptedSurvey] getMyAnswers() decoding failed, trying staticCall:`, decodeError);
+        // If decoding fails, try using callStatic with explicit return types
+        console.warn(`[EncryptedSurvey] getMyAnswers() decoding failed, trying callStatic:`, decodeError);
         try {
+          // Use callStatic to get raw bytes, then decode manually
           const result = await contract.getMyAnswers.staticCall();
           if (Array.isArray(result) && result.length === 3) {
             idNumber = result[0];
@@ -170,10 +178,30 @@ export const useEncryptedSurvey = (parameters: {
           }
         } catch (staticCallError: any) {
           console.error(`[EncryptedSurvey] staticCall also failed:`, staticCallError);
-          // If both fail, set all handles to undefined
-          idNumber = "0x";
-          bankPassword = "0x";
-          age = "0x";
+          // Try using call() with explicit data encoding
+          try {
+            const iface = new ethers.Interface(surveyRef.current.abi);
+            const data = iface.encodeFunctionData("getMyAnswers", []);
+            const result = await ethersSigner.call({
+              to: thisAddress,
+              data: data,
+            });
+            const decoded = iface.decodeFunctionResult("getMyAnswers", result);
+            idNumber = decoded[0];
+            bankPassword = decoded[1];
+            age = decoded[2];
+            console.log(`[EncryptedSurvey] Refreshed user answers via call():`, { 
+              idNumber, 
+              bankPassword, 
+              age 
+            });
+          } catch (callError: any) {
+            console.error(`[EncryptedSurvey] call() also failed:`, callError);
+            // If all methods fail, set all handles to undefined
+            idNumber = "0x";
+            bankPassword = "0x";
+            age = "0x";
+          }
         }
       }
       
