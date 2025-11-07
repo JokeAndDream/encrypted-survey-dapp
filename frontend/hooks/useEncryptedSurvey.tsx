@@ -127,23 +127,61 @@ export const useEncryptedSurvey = (parameters: {
       const contract = new ethers.Contract(thisAddress, surveyRef.current.abi, ethersSigner);
       
       // Call getMyAnswers() to get current user's encrypted answers
-      const [idNumber, bankPassword, age]: [string, string, string] = await contract.getMyAnswers();
-      console.log(`[EncryptedSurvey] Refreshed user answers:`, { 
-        idNumber, 
-        bankPassword, 
-        age 
-      });
+      // Handle potential decoding errors by catching and retrying with staticCall
+      let idNumber: string;
+      let bankPassword: string;
+      let age: string;
       
-      // Check if all handles are zero (no submissions yet)
-      const allZero = [idNumber, bankPassword, age].every(h => h === "0x0000000000000000000000000000000000000000000000000000000000000000");
+      try {
+        [idNumber, bankPassword, age] = await contract.getMyAnswers();
+        console.log(`[EncryptedSurvey] Refreshed user answers:`, { 
+          idNumber, 
+          bankPassword, 
+          age 
+        });
+      } catch (decodeError: any) {
+        // If decoding fails, try using staticCall with explicit return types
+        console.warn(`[EncryptedSurvey] getMyAnswers() decoding failed, trying staticCall:`, decodeError);
+        try {
+          const result = await contract.getMyAnswers.staticCall();
+          if (Array.isArray(result) && result.length === 3) {
+            idNumber = result[0];
+            bankPassword = result[1];
+            age = result[2];
+            console.log(`[EncryptedSurvey] Refreshed user answers via staticCall:`, { 
+              idNumber, 
+              bankPassword, 
+              age 
+            });
+          } else {
+            throw new Error("Invalid result format from getMyAnswers()");
+          }
+        } catch (staticCallError: any) {
+          console.error(`[EncryptedSurvey] staticCall also failed:`, staticCallError);
+          // If both fail, set all handles to undefined
+          idNumber = "0x";
+          bankPassword = "0x";
+          age = "0x";
+        }
+      }
+      
+      // Convert zero bytes32 to undefined, otherwise use the handle
+      const normalizeHandle = (h: string): string | undefined => {
+        if (!h || h === "0x" || h === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+          return undefined;
+        }
+        return h;
+      };
+      
+      const allZero = [idNumber, bankPassword, age].every(h => !h || h === "0x" || h === "0x0000000000000000000000000000000000000000000000000000000000000000");
       if (allZero) {
         console.log(`[EncryptedSurvey] All answers are zero (no submissions yet)`);
       }
       
       setQuestions(prev => [
-        { ...prev[0], handle: idNumber },
-        { ...prev[1], handle: bankPassword },
-        { ...prev[2], handle: age },
+        { ...prev[0], handle: normalizeHandle(idNumber) },
+        { ...prev[1], handle: normalizeHandle(bankPassword) },
+        { ...prev[2], handle: normalizeHandle(age) },
       ]);
     } catch (error: any) {
       console.error(`[EncryptedSurvey] Failed to refresh user answers:`, error);
