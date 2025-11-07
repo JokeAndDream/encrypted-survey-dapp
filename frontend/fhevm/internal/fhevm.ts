@@ -277,13 +277,23 @@ export const createFhevmInstance = async (parameters: {
 
   if (isMock) {
     console.log(`[createFhevmInstance] Detected mock chain, attempting to fetch FHEVM metadata from ${rpcUrl}`);
-    // Throws an error if cannot connect or url does not refer to a Web3 client
-    const fhevmRelayerMetadata =
-      await tryFetchFHEVMHardhatNodeRelayerMetadata(rpcUrl);
+    
+    // Check if we're actually on localhost before trying to connect
+    const isLocalhost = typeof window !== "undefined" && 
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+    
+    if (!isLocalhost) {
+      console.log(`[createFhevmInstance] Not on localhost (hostname=${typeof window !== "undefined" ? window.location.hostname : "undefined"}), cannot use mock chain. Falling back to real FHEVM relayer.`);
+      // Force use of real FHEVM relayer instead of mock
+      // We'll continue to the real SDK initialization below
+    } else {
+      // Throws an error if cannot connect or url does not refer to a Web3 client
+      const fhevmRelayerMetadata =
+        await tryFetchFHEVMHardhatNodeRelayerMetadata(rpcUrl);
 
-    console.log(`[createFhevmInstance] FHEVM metadata:`, fhevmRelayerMetadata ? 'found' : 'not found');
+      console.log(`[createFhevmInstance] FHEVM metadata:`, fhevmRelayerMetadata ? 'found' : 'not found');
 
-    if (fhevmRelayerMetadata) {
+      if (fhevmRelayerMetadata) {
       // fhevmRelayerMetadata is defined, which means rpcUrl refers to a FHEVM Hardhat Node
       notify("creating");
 
