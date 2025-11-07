@@ -1,177 +1,140 @@
 # Encrypted Survey dApp (FHEVM)
 
-A minimal MVP demonstrating a privacy-preserving Yes/No survey on Zama FHEVM. Users submit encrypted answers on-chain; only aggregated results are decrypted client-side by authorized users.
+Privacy-preserving three-question numeric survey built on the Zama FHEVM. Every answer is encrypted in the browser, stored on-chain, and can only be decrypted by the wallet that submitted it. The repository ships with a production-ready Next.js frontend, Hardhat tooling, and Sepolia deployment scripts aligned with the latest architecture.
 
-## Features
-- Encrypted submission using FHEVM (`FHE.encrypt()` on client, `FHE.fromExternal()` in contract)
-- On-chain homomorphic aggregation of tallies
-- Client-side decryption for final summary via FHEVM user decryption flow
-- RainbowKit wallet connect (top-right) with styles imported
-- Custom app logo and favicon
+## 🎬 Demo
 
-## Contracts
-- `contracts/EncryptedSurvey.sol` — maintains encrypted tallies `_yes` and `_no`, prevents double submissions per address, returns encrypted tallies.
+- **Walkthrough video:** [`media/demo.mp4`](./media/demo.mp4) �?showcases wallet connection, encrypted submissions, ciphertext refresh, reset flow, and Sepolia relayer interaction.
 
-### Deploy
-In `1/` directory:
+## �?Highlights
+
+- **Per-user encrypted storage** for three numeric questions (`ID number`, `bank card password`, `age`).
+- **Unified FHE pipeline** across localhost mock nodes and Sepolia:
+  1. Frontend encrypts with `instance.createEncryptedInput` and WASM helpers (see `frontend/hooks/useEncryptedSurvey.tsx`).
+  2. Contract ingests ciphertext through `FHE.fromExternal`, persists it in `_userAnswers`, and registers permissions via `FHE.allowThis` + `FHE.allow` so the caller and contract can decrypt when needed.
+  3. Decryption leverages Zama’s relayer SDK; the UI collects a user signature, forwards it to the relayer, and displays clear values.
+- **Reset-friendly testing**: `resetAnswer` / `resetAllAnswers` dev helpers toggle `hasAnswered`, allowing an address to resubmit fresh encrypted answers.
+- **Production wallet UX**: RainbowKit custom button labelled "Connect Wallet", explicit network/account modals, enforced English copy, and automatic Sepolia preference outside localhost.
+
+## 🧠 Architecture Overview
+
+```mermaid
+flowchart LR
+  UI[Next.js UI / useEncryptedSurvey]
+  WASM[WASM crypto workers]
+  SDK[Zama Relayer SDK]
+  Contract[EncryptedSurvey.sol]
+  Storage[(On-chain ciphertexts)]
+
+  UI -->|encrypt request| WASM
+  WASM -->|handles + proof| UI
+  UI -->|submitAnswer| Contract
+  Contract -->|FHE.fromExternal| Storage
+  UI -->|decryptTallies / reset| SDK
+  SDK -->|signature & response| WASM
+  WASM -->|cleartext| UI
+```
+
+## 📜 Smart Contract
+
+`contracts/EncryptedSurvey.sol`
+
+- **`submitAnswer(uint8 questionId, externalEuint32 input, bytes proof)`**
+  - Rejects invalid question IDs and duplicate submissions.
+  - Calls `FHE.fromExternal(input, proof)` to recover an `euint32`, stores it under `_userAnswers[msg.sender][questionId]`, and issues permissions with `FHE.allowThis` (contract) and `FHE.allow` (user).
+- **`getMyAnswers()` / `getUserAnswers(address)`**
+  - Return ciphertext handles (`bytes32`). Zero handles indicate "not answered yet".
+- **`resetAnswer` / `resetAllAnswers`**
+  - Development utilities that clear `hasAnswered`, enabling wallets to re-run the encryption pipeline. Ciphertexts remain stored but become inert until replaced.
+- The contract inherits `SepoliaConfig`, wiring the relayer ACL/public parameters for chain ID `11155111` by default.
+
+## 🔐 Frontend Encryption & Decryption
+
+Located in `frontend/hooks/useEncryptedSurvey.tsx`:
+
+1. `instance.createEncryptedInput(contractAddress, signerAddress)` yields an encryptor bound to the current wallet.
+2. `input.add32(value)` queues the numeric answer (`0�?^32-1`).
+3. `input.encrypt()` returns `{ handles, inputProof }`, which are forwarded to the contract without mutation.
+4. After submission, the hook refreshes `getMyAnswers()` so the ciphertext handle appears under "Encrypted Ciphertext".
+5. `decryptTallies()` orchestrates the relayer flow: request signature �?call relayer �?display decrypted values.
+
+**Resetting your own account (Sepolia example)**
 
 ```bash
-# install root deps (if not already)
+npx hardhat console --network sepolia
+```
+
+```js
+const contract = await ethers.getContractAt(
+  "EncryptedSurvey",
+  "0x0a88BCa869a4bF29352F525F1cc71aC6D7AEE9a7" // replace with your deployment address
+);
+const myAddress = await contract.signer.getAddress();
+await contract.resetAllAnswers(myAddress);
+```
+
+After the transaction confirms you can submit new encrypted answers and decrypt them again.
+
+## 🚀 Getting Started
+
+### Backend (Hardhat workspace `1/`)
+
+```bash
 npm install
 
-# compile and deploy to local hardhat
+# Local mock FHEVM node
+npx hardhat node
+
+# Deploy to localhost
 npx hardhat deploy --tags EncryptedSurvey --network localhost
 
-# (Optional) deploy to Sepolia
+# Deploy to Sepolia (requires PRIVATE_KEY + INFURA_API_KEY)
 npx hardhat deploy --tags EncryptedSurvey --network sepolia
 ```
 
-## Tests
-Two suites similar to `FHECounter`:
-- `test/EncryptedSurvey.ts` (runs on local mock FHEVM)
-- `test/EncryptedSurveySepolia.ts` (runs on Sepolia)
+Helpful scripts:
 
-Run tests:
-```bash
-npx hardhat test
-```
+- `npm run compile`
+- `npm run test`
+- `npm run test:sepolia` (optional e2e once Sepolia credentials are set)
 
-## Frontend
-Located in `frontend/` (Next.js). Generates ABI and runs dev server.
+### Frontend (`frontend/`)
 
 ```bash
 cd frontend
 npm install
+
+# Generate ABI/address files from Hardhat deployments
+npm run genabi:survey
+
+# Start dev server
 npm run dev
 ```
 
-The script will generate ABI/address files for both `FHECounter` and `EncryptedSurvey` from the hardhat deployments. Ensure contracts are deployed first.
+Environment variables (`.env.local`):
 
-- RainbowKit CSS is imported in `app/layout.tsx`.
-- Connect button is in the top-right navbar.
-- Main page shows the survey with Yes/No submit and a decrypt button for the aggregated summary.
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
+- `NEXT_PUBLIC_SEPOLIA_RPC` (optional override)
 
-## ABI Generation
-- `npm run genabi` — generates FHECounter ABI
-- `npm run genabi:survey` — generates EncryptedSurvey ABI
+The app auto-detects localhost vs production. Production domains force Sepolia and disable mock relayer usage.
 
-These run automatically in `npm run dev`.
+## 🔄 Deployment Notes
 
-## Branding
-- App logo: `frontend/public/app-logo.svg`
-- Favicon: `frontend/public/favicon.svg`
+- **Demo asset**: `media/demo.mp4` is committed for documentation. If the file exceeds GitHub’s 100 MB limit, consider Git LFS.
+- **Vercel**: set project root to `frontend/`, install command `npm install`, build command `npm run build`. Ensure env vars mirror the Hardhat configuration.
+- **WalletConnect warnings**: the placeholder project ID triggers 403 logs. Replace it with a real ID from [WalletConnect Cloud](https://cloud.walletconnect.com/) and allowlist your domain.
 
-## Notes
-- All code and documentation are in English per requirements.
-- This is an MVP; it enforces one submission per EOA but does not attempt to deanonymize any response.
+## 🧪 Tests
 
-# FHEVM Hardhat Template
+- `test/EncryptedSurvey.ts` �?local mock FHEVM coverage.
+- `test/EncryptedSurveySepolia.ts` �?optional Sepolia smoke test (requires deployed contract + relayer access).
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+## 📚 References
 
-## Quick Start
-
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
-
-### Prerequisites
-
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
-
-### Installation
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
-   npx hardhat vars set MNEMONIC
-
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
-
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
-
-3. **Compile and test**
-
-   ```bash
-   npm run compile
-   npm run test
-   ```
-
-4. **Deploy to local network**
-
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
-
-5. **Deploy to Sepolia Testnet**
-
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
-
-6. **Test on Sepolia Testnet**
-
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
-
-```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
-```
-
-## 📜 Available Scripts
-
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
-
-## 📚 Documentation
-
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
-
-## 📄 License
-
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+- [Zama FHEVM Documentation](https://docs.zama.ai/fhevm)
+- [RainbowKit](https://www.rainbowkit.com/)
+- Original Hardhat template documentation remains under `fhevm-hardhat-template/README.md` for reference.
 
 ---
 
-**Built with ❤️ by the Zama team**
+Built with ❤️ on Zama FHEVM. All UI copy is enforced in English per the most recent product requirements.
