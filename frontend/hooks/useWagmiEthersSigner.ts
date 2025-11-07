@@ -51,8 +51,8 @@ export function useWagmiEthersSigner() {
   }, [signer]);
 
   // Create stable functions that use refs
-  const sameChainRef = useRef<(cid: number | undefined) => boolean>();
-  const sameSignerRef = useRef<(s: ethers.JsonRpcSigner | undefined) => boolean>();
+  const sameChainRef = useRef<((cid: number | undefined) => boolean) | undefined>(undefined);
+  const sameSignerRef = useRef<((s: ethers.JsonRpcSigner | undefined) => boolean) | undefined>(undefined);
 
   if (!sameChainRef.current) {
     sameChainRef.current = (cid: number | undefined) => cid === chainIdRef.current;
