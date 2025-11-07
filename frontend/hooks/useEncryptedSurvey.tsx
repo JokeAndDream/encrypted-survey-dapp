@@ -62,42 +62,57 @@ export const useEncryptedSurvey = (parameters: {
   // Priority: 1) Use wallet chainId if contract is deployed on that network
   //           2) Fall back to localhost (31337) ONLY if we're on localhost and wallet is not connected
   const effectiveChainId = (() => {
-    console.log(`[useEncryptedSurvey] effectiveChainId: chainId=${chainId}, hostname=${typeof window !== "undefined" ? window.location.hostname : "undefined"}`);
-    
-    // First, check if we have a deployment for the wallet's chainId
-    if (chainId) {
+    const hostname = typeof window !== "undefined" ? window.location.hostname : "undefined";
+    console.log(`[useEncryptedSurvey] effectiveChainId: chainId=${chainId}, hostname=${hostname}`);
+
+    const isLocalhost = typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "0.0.0.0");
+
+    const localhostEntry = EncryptedSurveyAddresses["31337"];
+    const sepoliaEntry = EncryptedSurveyAddresses["11155111"];
+
+    // 1) Wallet connected
+    if (typeof chainId === "number") {
       const chainEntry = EncryptedSurveyAddresses[chainId.toString() as keyof typeof EncryptedSurveyAddresses];
       console.log(`[useEncryptedSurvey] effectiveChainId: chainEntry for ${chainId}:`, chainEntry);
+
       if (chainEntry && chainEntry.address !== ethers.ZeroAddress) {
+        // Prevent accidentally using Hardhat (31337) when running in production
+        if (chainId === 31337 && !isLocalhost) {
+          if (sepoliaEntry && sepoliaEntry.address !== ethers.ZeroAddress) {
+            console.log(`[useEncryptedSurvey] effectiveChainId: Ignoring Hardhat chainId (31337) on non-localhost (${hostname}), switching to Sepolia (11155111).`);
+            return sepoliaEntry.chainId;
+          }
+          console.warn(`[useEncryptedSurvey] effectiveChainId: Hardhat chainId (31337) detected on non-localhost but Sepolia deployment not found. Returning undefined.`);
+          return undefined;
+        }
+
         console.log(`[useEncryptedSurvey] Using wallet chainId (${chainId}) for contract lookup`);
         return chainId;
-      } else {
-        console.log(`[useEncryptedSurvey] effectiveChainId: No deployment found for chainId ${chainId}`);
       }
+
+      console.log(`[useEncryptedSurvey] effectiveChainId: No deployment found for chainId ${chainId}`);
     } else {
-      console.log(`[useEncryptedSurvey] effectiveChainId: chainId is undefined`);
+      console.log(`[useEncryptedSurvey] effectiveChainId: chainId is undefined (wallet may be disconnected)`);
     }
-    
-    // If wallet chainId doesn't have a deployment, check for localhost deployment
-    // ONLY use localhost if we're actually on localhost (not Vercel/production)
-    const isLocalhost = typeof window !== "undefined" && 
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-    
-    console.log(`[useEncryptedSurvey] effectiveChainId: isLocalhost=${isLocalhost}`);
-    
-    const localhostEntry = EncryptedSurveyAddresses["31337"];
-    if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress && isLocalhost) {
-      // Only use localhost if wallet is not connected or if we're in development mode
-      if (!chainId) {
-        console.log(`[useEncryptedSurvey] Using localhost chainId (31337) - no wallet connected`);
+
+    // 2) Wallet not connected or chain not deployed
+    if (isLocalhost) {
+      if (localhostEntry && localhostEntry.address !== ethers.ZeroAddress) {
+        console.log(`[useEncryptedSurvey] effectiveChainId: Defaulting to localhost Hardhat deployment (31337).`);
         return 31337;
       }
+      console.warn(`[useEncryptedSurvey] effectiveChainId: Localhost detected but no Hardhat deployment found.`);
+      return undefined;
     }
-    
-    // Return wallet chainId as fallback (even if no deployment found)
-    // This ensures we use the correct chainId in production
-    console.log(`[useEncryptedSurvey] Using wallet chainId (${chainId}) as fallback`);
-    return chainId;
+
+    if (sepoliaEntry && sepoliaEntry.address !== ethers.ZeroAddress) {
+      console.log(`[useEncryptedSurvey] effectiveChainId: Defaulting to Sepolia (11155111) for production environment.`);
+      return sepoliaEntry.chainId;
+    }
+
+    console.warn(`[useEncryptedSurvey] effectiveChainId: No suitable deployment found, returning undefined.`);
+    return undefined;
   })();
 
   const [questions, setQuestions] = useState<QuestionData[]>([
