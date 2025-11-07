@@ -407,7 +407,9 @@ export const useEncryptedSurvey = (parameters: {
               handleBytes32 = '0x' + handleArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
               console.log(`[EncryptedSurvey] Conversion complete`);
             } else {
-              throw new Error(`Invalid handle format: ${typeof handle}, constructor: ${handle?.constructor?.name}`);
+              const handleType = typeof handle;
+              const handleConstructor = (handle as unknown as { constructor?: { name?: string } })?.constructor?.name;
+              throw new Error(`Invalid handle format: ${handleType}, constructor: ${handleConstructor || 'unknown'}`);
             }
           } catch (conversionError: any) {
             console.error(`[EncryptedSurvey] Error converting handle:`, conversionError);
